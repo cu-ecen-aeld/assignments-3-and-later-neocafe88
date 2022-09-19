@@ -1,5 +1,5 @@
 #!/bin/bash
- 
+
 if [ $# -eq 2 ]
 then
     if [ -d $1 ] 
