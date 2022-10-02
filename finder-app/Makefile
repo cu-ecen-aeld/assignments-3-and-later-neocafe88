@@ -1,4 +1,4 @@
-CC=gcc
+CC=aarch64-none-linux-gnu-gcc
 CFLAGS = -g
 CPPFLAGS =
 LDFLAGS =
