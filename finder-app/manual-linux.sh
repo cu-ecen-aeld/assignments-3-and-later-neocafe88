@@ -25,9 +25,6 @@ mkdir -p ${OUTDIR}
 
 cd "$OUTDIR"
 
-echo "******** OUTDIR= $(pwd)********"
-cd /home/hj/projs/assignment-1-neocafe88/finder-app
-
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
     #Clone only if the repository does not exist.
 	echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
