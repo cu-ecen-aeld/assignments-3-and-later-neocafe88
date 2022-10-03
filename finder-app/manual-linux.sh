@@ -18,7 +18,13 @@ echo `pwd`
 echo "WHOAMI="
 echo `whoami`
 
+
+cd "/home"
+cd "/home/hj"
+cd "/home/hj/projs"
+cd "/home/hj/projs/assignment-1-neocafe88/"
 cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
+
 
 if [ $# -lt 1 ]
 then
