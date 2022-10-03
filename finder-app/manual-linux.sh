@@ -121,7 +121,7 @@ sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 
-cd ~/projs/assignment-1-neocafe88/finder-app
+cd /home/hj/projs/assignment-1-neocafe88/finder-app
 make clean
 make
 
