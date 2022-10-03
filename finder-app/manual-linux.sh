@@ -16,20 +16,16 @@ CROSS_COMPILE=aarch64-none-linux-gnu-
 echo "************** TEST CODE"
 
 
+echo "WHOAMI = $(whoami)"
 echo "PWD= $(pwd)"
-echo "PWD2= $(pwd)"
 
 #cd "/home"
 #cd "/home/hj"
-#cd "/home/hj/projs"
-cd "/home/hj/projs/assignment-1-neocafe88"
+cd "/home/hj/projs"
+#cd "/home/hj/projs/assignment-1-neocafe88"
 #cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
 
-echo "PWD= $(pwd)"
 echo "PWD2= $(pwd)"
-
-echo "WHOAMI = $(whoami)"
-
 echo "CD SUCCESSFUL**************"
 
 
