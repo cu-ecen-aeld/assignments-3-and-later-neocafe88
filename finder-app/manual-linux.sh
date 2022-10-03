@@ -23,6 +23,8 @@ echo "PWD= $(pwd)"
 cd "/home/hj/projs/assignment-1-neocafe88"
 #cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
 
+echo "PWD2= $(pwd)"
+
 echo "WHOAMI = $(whoami)"
 
 echo "CD SUCCESSFUL**************"
