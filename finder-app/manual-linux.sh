@@ -20,8 +20,8 @@ echo "PWD= $(pwd)"
 #cd "/home"
 #cd "/home/hj"
 #cd "/home/hj/projs"
-#cd "/home/hj/projs/assignment-1-neocafe88/"
-cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
+cd "/home/hj/projs/assignment-1-neocafe88"
+#cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
 
 echo "WHOAMI = $(whoami)"
 
