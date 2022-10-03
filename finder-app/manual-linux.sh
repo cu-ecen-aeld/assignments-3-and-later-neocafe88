@@ -13,17 +13,18 @@ FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 
-echo "PWD="
-echo `pwd`
-echo "WHOAMI="
-echo `whoami`
+echo "************** TEST CODE"
 
+echo "PWD=$(pwd)"
+echo "WHOAMI=$(whoami)"
 
 cd "/home"
 cd "/home/hj"
 cd "/home/hj/projs"
 cd "/home/hj/projs/assignment-1-neocafe88/"
 cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
+
+echo "CD SUCCESSFUL**************"
 
 
 if [ $# -lt 1 ]
