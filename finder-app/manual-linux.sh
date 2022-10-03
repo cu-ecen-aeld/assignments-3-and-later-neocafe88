@@ -98,16 +98,20 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 
-SYSROOT=$(${CROSS_COMPILE}gcc -print-sysroot)
+#SYSROOT=$(${CROSS_COMPILE}gcc --print-sysroot)
+
+SYSROOT=/usr/local/arm-cross-compiler/install/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc
+
+echo "SYSROOT = $SYSROOT"
 
 cp -a $SYSROOT/lib/ld-linux-aarch64.so.1 lib
-cp -a $SYSROOT/lib64/ld-2.33.so lib64
+cp -a $SYSROOT/lib64/ld-2.31.so lib64
 cp -a $SYSROOT/lib64/libm.so.6 lib64
-cp -a $SYSROOT/lib64/libm-2.33.so lib64
+cp -a $SYSROOT/lib64/libm-2.31.so lib64
 cp -a $SYSROOT/lib64/libresolv.so.2 lib64
-cp -a $SYSROOT/lib64/libresolv-2.33.so lib64
+cp -a $SYSROOT/lib64/libresolv-2.31.so lib64
 cp -a $SYSROOT/lib64/libc.so.6 lib64
-cp -a $SYSROOT/lib64/libc-2.33.so lib64
+cp -a $SYSROOT/lib64/libc-2.31.so lib64
 
 
 # TODO: Make device nodes
