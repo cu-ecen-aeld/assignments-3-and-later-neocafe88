@@ -13,22 +13,6 @@ FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 
-echo "************** TEST CODE"
-
-
-echo "WHOAMI = $(whoami)"
-echo "PWD= $(pwd)"
-
-#cd "/home"
-#cd "/home/hj"
-cd "/home/hj/projs"
-#cd "/home/hj/projs/assignment-1-neocafe88"
-#cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
-
-echo "PWD2= $(pwd)"
-echo "CD SUCCESSFUL**************"
-
-
 if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
@@ -40,6 +24,9 @@ fi
 mkdir -p ${OUTDIR}
 
 cd "$OUTDIR"
+
+echo "******** OUTDIR= $(pwd)********"
+cd /home/hj/projs/assignment-1-neocafe88/finder-app
 
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
     #Clone only if the repository does not exist.
@@ -137,7 +124,7 @@ sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 
-cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
+cd ${FINDER_APP_DIR}
 make clean
 make
 
