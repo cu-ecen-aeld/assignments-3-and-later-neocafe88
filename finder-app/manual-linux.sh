@@ -13,6 +13,9 @@ FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 
+cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
+echo `pwd`
+
 if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
@@ -121,7 +124,7 @@ sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 
-cd /home/hj/projs/assignment-1-neocafe88/finder-app
+cd "/home/hj/projs/assignment-1-neocafe88/finder-app"
 make clean
 make
 
