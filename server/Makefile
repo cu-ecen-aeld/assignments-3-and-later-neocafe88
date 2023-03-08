@@ -3,11 +3,13 @@
 #CC=aarch64-none-linux-gnu-gcc
 CC ?= $(CORSS_COMPILE}gcc
 CFLAGS ?= -g -Wall  -pthread
+TARGET ?= aesdsocket
 LDFLAGS ?= -lpthread -lrt
 
 all: aesdsocket
 
-aesdsocket: aesdsocket.o 
+aesdsocket: aesdsocket.c 
+	$(CC) $(CFLAGS) $^ -o $@ $(INCLUDES) $(LDFLAGS)
 
 clean:
 	rm -rf *.o
