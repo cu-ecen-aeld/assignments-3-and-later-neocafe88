@@ -2,7 +2,7 @@
 
 #CC=aarch64-none-linux-gnu-gcc
 CC ?= $(CORSS_COMPILE}gcc
-CFLAGS ?= -g -Wall -pthread
+CFLAGS ?= -g -Wall -Werror
 TARGET ?= aesdsocket
 LDFLAGS ?= -lpthread -lrt
 
