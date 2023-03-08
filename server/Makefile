@@ -1,9 +1,10 @@
 .DEFAULT_GOAL := aesdsocket
 
 #CC=aarch64-none-linux-gnu-gcc
-CFLAGS= -g -Wall  -pthread
-CPPFLAGS=
-LDFLAGS= -lpthread
+CC ?= $(CORSS_COMPILE}gcc
+CFLAGS ?= -g -Wall  -pthread
+CPPFLAGS ?=
+LDFLAGS ?= -lpthread
 
 all: aesdsocket
 
