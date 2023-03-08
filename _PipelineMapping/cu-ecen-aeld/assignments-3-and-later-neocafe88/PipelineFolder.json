@@ -1,0 +1,12 @@
+﻿{
+  "repositoryName": "cu-ecen-aeld/assignments-3-and-later-neocafe88",
+  "pipelineDirectory": "assignments-3-and-later-neocafe88",
+  "workspaceDirectory": "assignments-3-and-later-neocafe88/assignments-3-and-later-neocafe88",
+  "repositories": {
+    "cu-ecen-aeld/assignments-3-and-later-neocafe88": {
+      "repositoryPath": "assignments-3-and-later-neocafe88/assignments-3-and-later-neocafe88",
+      "lastRunOn": "03/07/2023 19:55:40 -06:00"
+    }
+  },
+  "lastRunOn": "03/07/2023 19:57:18 -06:00"
+}

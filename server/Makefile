@@ -1,9 +1,9 @@
 .DEFAULT_GOAL := aesdsocket
 
 #CC=aarch64-none-linux-gnu-gcc
-CFLAGS = -g -Wall -Werror
-CPPFLAGS =
-LDFLAGS =
+CFLAGS= -g -Wall  -pthread
+CPPFLAGS=
+LDFLAGS= -lpthread
 
 all: aesdsocket
 

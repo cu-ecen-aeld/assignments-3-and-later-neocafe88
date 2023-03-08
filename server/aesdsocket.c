@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -18,17 +19,41 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <fcntl.h>
+#include <sys/queue.h>
+#include <sys/time.h>
 
 #define LISTEN_PORT "9000"  
-#define SAVE_FILE "/var/tmp/aesdsocketdata"
 #define MAX_BUF 1024
 #define MAX_PACKET_BUF 65000
+#define SAVE_FILE "/var/tmp/aesdsocketdata"
 
 #define BACKLOG 10	 // how many pending connections queue will hold
 
+typedef struct slist_data_s slist_date_t;
+
+struct slist_data_s {
+	int fd_client;
+	char *addr;
+    pthread_t thread_id;
+	bool thread_complete;
+	bool thread_joined;
+	SLIST_ENTRY(slist_data_s) entries;
+};
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+// file descriptor
 int fw = -1, fr = -1;
 
+// control threads
+bool exit_triggered = false;
+
+// thread function
+void *session_handler(void *);
+
 /* Signal Handlers */
+
+// signal handler
 
 static void exit_signal_handler (int signo) 
 {
@@ -37,7 +62,8 @@ static void exit_signal_handler (int signo)
 	// clean up
 	if (fr != -1) close(fr);
 	if (fw != -1) close(fw);
-	remove(SAVE_FILE); 
+
+	remove(SAVE_FILE); // delete the file
 
 	//
 	if (signo == SIGINT) 
@@ -45,25 +71,20 @@ static void exit_signal_handler (int signo)
 	else if (signo == SIGTERM)
 		printf("Exit by SIGTERM\n");
 
-	exit (EXIT_SUCCESS);
+	// signal thread to stop
+	exit_triggered = true;
+
+	// cause alarm signal --> unblock 'accept()'
+	alarm(3);  
+	//printf("The program will exit within 10s\n");
+
+	// exit (EXIT_SUCCESS); -- graceful exit
 }
 
-void sigchld_handler(int s)
-{
-	(void)s; // quiet unused variable warning
-
-	// waitpid() might overwrite errno, so we save and restore it:
-	int saved_errno = errno;
-
-	while(waitpid(-1, NULL, WNOHANG) > 0);
-
-	errno = saved_errno;
-}
+// register signal handlers 
 
 void catch_signals() 
 {
-	struct sigaction sa;
-
 	// SIGINT, SIGTERM handler
 	if (signal(SIGINT, exit_signal_handler) == SIG_ERR) {
 		fprintf(stderr, "Cannot handle SIGINIT!\n");
@@ -74,17 +95,6 @@ void catch_signals()
 		fprintf(stderr, "Cannot handle SIGTERM!\n");
 		exit(-1);
 	}
-
-	// SIGCHLD handler
-	sa.sa_handler = sigchld_handler; // reap all dead processes 
-	sigemptyset(&sa.sa_mask); 
-	sa.sa_flags = SA_RESTART; 
-
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) { 
-		perror("sigaction"); 
-		exit(-1);
-	} 
-
 }
 
 /* Socket Utilities */
@@ -196,143 +206,225 @@ bool save_to_file(char* packet, int size) {
 	}
 }
 
+// listening module
+
 void accept_loop(int fd_server)
 {
-    int fd_client;
+    int fd_client, rc;
 	struct sockaddr_storage client_addr; 
 	socklen_t sin_size = sizeof(struct sockaddr_storage);;
 	char s[INET6_ADDRSTRLEN];
-	char packet_buf[MAX_PACKET_BUF], recv_buf[MAX_BUF];
-	int n_packet = 0, n_recv;
-	int i, pos_newline, rc, n_read;
+
+	pthread_t thread_id;
+	struct slist_data_s *datap = NULL;
+
+	// set linked list
+	SLIST_HEAD(slisthead, slist_data_s) head; 
+	SLIST_INIT(&head); // head points to NULL
 
 	printf("server: waiting for connections...\n");
 
-	while(1) {  
+	while(!exit_triggered) {  
+		// accept a connection
 		fd_client = accept(fd_server, (struct sockaddr *)&client_addr, &sin_size); 
+
+		if (fd_client == -1) { 
+			// can be caused by alarm (interval timer which interrupt 'accept'
+			continue;
+		} 
 
 		printf("new connection: %d\n", fd_client);
 
-		if (fd_client == -1) { 
-			perror("accept"); 
-			continue; 
-		} 
+		// address
+		inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), s, sizeof s); 
+
+		// create linked list item before creating a thread
+		datap = malloc(sizeof(struct slist_data_s));
+		datap->addr = s;
+		datap->fd_client = fd_client;
+		datap->thread_complete = false;
+		datap->thread_joined = false;
+		
+		// create thread
+		rc = pthread_create(&thread_id, NULL, session_handler, (void *) datap);
+
+		if (rc < 0) {
+			perror("Could not create thread");
+			free(datap); // release the allocatied memory
+			break; // someting wrong -> exit
+		}
 
 		// log
-		inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), s, sizeof s); 
 		printf("server: got connection from %s\n", s); 
 		syslog(LOG_DEBUG, "Accepted connection from %s", s);
 
-		/* 
-		if (!fork()) { // this is the child process 
-			// Start of Child Process 
+		// set thread ID
+		datap->thread_id = thread_id;
 
-			close(fd_server); // child doesn't need the listener 
+		// insert datap to the linked list
+		SLIST_INSERT_HEAD(&head, datap, entries); // set the new item as the first
 
-			if (send(fd_client, "Hello, world!", 13, 0) == -1) 
-				perror("send"); 
+		// join if thread is complete but not joined yet
+		// The allocation is not deleted here as SLIT_FOREACH_SAFE is not defined
+		// deleting the list item here might not be safe
 
-			close(fd_client); 
-			exit(0); 
+		SLIST_FOREACH(datap, &head, entries) {
+			if (!datap->thread_joined && datap->thread_complete) {
+			    pthread_join(datap->thread_id, NULL);
+				datap->thread_joined = true;
+			}
+		}
+	} 
 
-			//
+	// release memory allocations 
+	while(!SLIST_EMPTY(&head)) { // (&head)->slh_first == NULL
+		// list item
+		datap = SLIST_FIRST(&head);  
+		// make sure it's the thread was joined
+		if(!datap->thread_joined) {
+			pthread_join(datap->thread_id, NULL);
+		}
+		// remote from the linked list
+		SLIST_REMOVE_HEAD(&head, entries); 
+		// free the allocation
+		free(datap);
+	}
+}
+
+void* session_handler(void* dp)
+{
+	char packet_buf[MAX_PACKET_BUF], recv_buf[MAX_BUF];
+	int n_packet = 0, n_recv;
+	int i, pos_newline, rc, n_read;
+	int fd_client = -1;
+
+	struct slist_data_s *datap = (struct slist_data_s *) dp;
+	fd_client = datap->fd_client;
+
+	while(!exit_triggered) {
+		n_recv = recv(fd_client, recv_buf, MAX_BUF, 0);
+
+		// socket closed
+		if (n_recv == 0) {
+			printf("server: closed connection from %s\n", datap->addr); 
+			syslog(LOG_DEBUG, "Closed connection from %s", datap->addr);
+			break;
+		}
+
+		// check buffer full
+		if (n_packet + n_recv > MAX_PACKET_BUF) {
+			printf("Buffer full. Packet is discarded\n");
+			n_packet = 0;
+			continue;
 		} 
-		*/
 
-		while(1) {
-			n_recv = recv(fd_client, recv_buf, MAX_BUF, 0);
+		// copy to master buffer
+		memcpy(packet_buf + n_packet, recv_buf, n_recv);
+		n_packet += n_recv;
 
-			// socket closed
-			if (n_recv == 0) {
-				printf("server: closed connection from %s\n", s); 
-				syslog(LOG_DEBUG, "Closed connection from %s", s);
+		printf("%d characters received, total = %d\n", n_recv, n_packet);
+
+		// check packet ending
+		pos_newline = -1;
+
+		for(i = 0; i < n_packet; i++) {
+
+		    //printf("[%d]%c", i, packet_buf[i]);
+
+			if (packet_buf[i] == '\n') {
+				pos_newline = i;
 				break;
-			}
-
-			// check buffer full
-			if (n_packet + n_recv > MAX_PACKET_BUF) {
-				printf("Buffer full. Packet is discarded\n");
-				n_packet = 0;
-				continue;
-			} 
-
-			// copy to master buffer
-			memcpy(packet_buf + n_packet, recv_buf, n_recv);
-			n_packet += n_recv;
-
-			printf("%d characters received, total = %d\n", n_recv, n_packet);
-
-			// check packet ending
-			pos_newline = -1;
-
-			for(i = 0; i < n_packet; i++) {
-
-			    //printf("[%d]%c", i, packet_buf[i]);
-
-				if (packet_buf[i] == '\n') {
-					pos_newline = i;
-					break;
-				}
-			}
-
-			// packet completed
-			if(pos_newline >= 0) {
-				// save
-				save_to_file(packet_buf, pos_newline+1); // include newline
-
-				if (n_packet > pos_newline+1) {
-					memcpy(packet_buf, packet_buf + pos_newline+1, n_packet - pos_newline - 1);
-					n_packet = n_packet - pos_newline - 1;
-				} else {
-					n_packet = 0;
-				}
-
-				//if (send(fd_client, "Hello, world!", 13, 0) == -1) 
-				//	perror("send"); 
-				// send the whole content
-
-				fr = open(SAVE_FILE, O_RDONLY);
-
-				if (fr == -1) {
-				    perror("open - rd");
-					exit(-1);
-				}
-				
-				while(1) {
-					n_read = read(fr, recv_buf, MAX_BUF);
-
-					if (n_read == -1) {
-						perror("read");
-						break;
-					}
-
-					if (n_read > 0) {
-						rc = send(fd_client, recv_buf, n_read, 0);
-						if (rc == -1) {
-							perror("send");
-							break;
-						}
-					} else {
-						break;
-					}
-				}
-				close(fr);
-
-				fr = -1; // for signal handler
 			}
 		}
 
-		close(fd_client);  // parent doesn't need this 
-	} 
+		// packet completed
+		if(pos_newline >= 0) {
+			// save
+			pthread_mutex_lock(&lock); // protect critical section
+			save_to_file(packet_buf, pos_newline+1); // include newline
+			pthread_mutex_unlock(&lock); // release mutex
+
+			if (n_packet > pos_newline+1) {
+				memcpy(packet_buf, packet_buf + pos_newline+1, n_packet - pos_newline - 1);
+				n_packet = n_packet - pos_newline - 1;
+			} else {
+				n_packet = 0;
+			}
+
+			// feedback
+			pthread_mutex_lock(&lock);
+
+			fr = open(SAVE_FILE, O_RDONLY);
+
+			if (fr == -1) {
+			    perror("open - rd");
+				exit(-1);
+			}
+				
+			while(1) {
+				n_read = read(fr, recv_buf, MAX_BUF);
+
+				if (n_read == -1) {
+					perror("read");
+					break;
+				}
+
+				if (n_read > 0) {
+					rc = send(fd_client, recv_buf, n_read, 0);
+					if (rc == -1) {
+						perror("send");
+						break;
+					}
+				} else {
+					break;
+				}
+			}
+			close(fr);
+
+			fr = -1; // for signal handler
+
+			pthread_mutex_unlock(&lock);
+		} // if
+	} // while
+
+	datap->thread_complete = true;
+
+	close(fd_client);  // parent doesn't need this 
+
+	return NULL;
+}
+
+/* Timer */
+
+void timer_proc (int signum) 
+{
+	time_t timer;
+	char buf[100];
+	struct tm* tm_info;
+
+	timer = time(NULL);
+	tm_info = localtime(&timer);
+
+	sprintf(buf, "timestamp:");
+	//strftime(buf, 30,"%a, %d %b %Y %T %z", tm_info);
+	strftime(buf+10, 30,"%d %b %Y %T", tm_info);
+	strcat(buf, "\n");
+	printf("%s", buf);
+
+	pthread_mutex_lock(&lock); // protect critical section
+	save_to_file(buf, strlen(buf)); 
+	pthread_mutex_unlock(&lock); // release mutex
 }
 
 int main(int argc, char *argv[])
 {
 	int fd;
 	pid_t pid;
+	struct itimerval itv;
+	struct sigaction sa;
 
 	// syslog
-	openlog("Assignment5", LOG_NDELAY, LOG_USER);
+	openlog("Assignment6", LOG_NDELAY, LOG_USER);
 
 	// bind socket
 	if(!bind_socket(&fd)) {
@@ -364,6 +456,19 @@ int main(int argc, char *argv[])
 		perror("listen"); 
 		exit(-1); 
 	} 
+
+	// timer handler
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = &timer_proc;
+	sigaction(SIGALRM, &sa, NULL); // for ITIMER_REAL
+
+	// timer setting -- ever 10 seconds do something
+	itv.it_value.tv_sec = 10;
+	itv.it_value.tv_usec = 0;
+	itv.it_interval.tv_sec = 10;
+	itv.it_interval.tv_usec = 0;
+
+	setitimer(ITIMER_REAL, &itv, NULL);
 
 	//
 	catch_signals();
