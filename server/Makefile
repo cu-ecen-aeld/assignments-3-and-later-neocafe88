@@ -3,8 +3,7 @@
 #CC=aarch64-none-linux-gnu-gcc
 CC ?= $(CORSS_COMPILE}gcc
 CFLAGS ?= -g -Wall  -pthread
-CPPFLAGS ?=
-LDFLAGS ?= -lpthread
+LDFLAGS ?= -lpthread -lrt
 
 all: aesdsocket
 
