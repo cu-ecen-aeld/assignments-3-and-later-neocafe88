@@ -40,6 +40,9 @@ struct slist_data_s {
 	SLIST_ENTRY(slist_data_s) entries;
 };
 
+// set linked list
+SLIST_HEAD(slisthead, slist_data_s) head; 
+
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 // file descriptor
@@ -50,6 +53,8 @@ bool exit_triggered = false;
 
 // thread function
 void *session_handler(void *);
+//
+void clean_up(); // free resources
 
 /* Signal Handlers */
 
@@ -74,11 +79,11 @@ static void exit_signal_handler (int signo)
 	// signal thread to stop
 	exit_triggered = true;
 
-	// cause alarm signal --> unblock 'accept()'
-	alarm(3);  
-	//printf("The program will exit within 10s\n");
+	// 
+	clean_up(); // pthread_join here
 
-	// exit (EXIT_SUCCESS); -- graceful exit
+	//
+	exit (EXIT_SUCCESS);
 }
 
 // register signal handlers 
@@ -218,9 +223,6 @@ void accept_loop(int fd_server)
 	pthread_t thread_id;
 	struct slist_data_s *datap = NULL;
 
-	// set linked list
-	SLIST_HEAD(slisthead, slist_data_s) head; 
-	SLIST_INIT(&head); // head points to NULL
 
 	printf("server: waiting for connections...\n");
 
@@ -276,6 +278,14 @@ void accept_loop(int fd_server)
 		}
 	} 
 
+	//
+	clean_up();
+}
+
+void clean_up() 
+{
+	struct slist_data_s *datap = NULL;
+
 	// release memory allocations 
 	while(!SLIST_EMPTY(&head)) { // (&head)->slh_first == NULL
 		// list item
@@ -283,6 +293,7 @@ void accept_loop(int fd_server)
 		// make sure it's the thread was joined
 		if(!datap->thread_joined) {
 			pthread_join(datap->thread_id, NULL);
+			datap->thread_joined = true;
 		}
 		// remote from the linked list
 		SLIST_REMOVE_HEAD(&head, entries); 
@@ -456,6 +467,9 @@ int main(int argc, char *argv[])
 		perror("listen"); 
 		exit(-1); 
 	} 
+
+	// init linked list
+	SLIST_INIT(&head); // head points to NULL
 
 	// timer handler
 	memset(&sa, 0, sizeof(sa));
