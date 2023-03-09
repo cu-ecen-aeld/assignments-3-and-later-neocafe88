@@ -421,7 +421,7 @@ void timer_proc (int signum)
 	//strftime(buf, 30,"%a, %d %b %Y %T %z", tm_info);
 	strftime(buf+10, 30,"%d %b %Y %T", tm_info);
 	strcat(buf, "\n");
-	printf("%s", buf);
+	//printf("%s", buf);
 
 	pthread_mutex_lock(&lock); // protect critical section
 	save_to_file(buf, strlen(buf)); 
