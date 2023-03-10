@@ -21,7 +21,7 @@
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+MODULE_AUTHOR("Hyoun Cho"); /** TODO: fill in your name **/
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
@@ -29,6 +29,7 @@ struct aesd_dev aesd_device;
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
+
     /**
      * TODO: handle open
      */
@@ -91,6 +92,10 @@ static int aesd_setup_cdev(struct aesd_dev *dev)
 
 int aesd_init_module(void)
 {
+	printk(KERN_ALERT "Hello, this aesd char driver");
+	return 0;
+
+/*
     dev_t dev = 0;
     int result;
     result = alloc_chrdev_region(&dev, aesd_minor, 1,
@@ -101,31 +106,38 @@ int aesd_init_module(void)
         return result;
     }
     memset(&aesd_device,0,sizeof(struct aesd_dev));
+	*/
 
     /**
      * TODO: initialize the AESD specific portion of the device
      */
 
+	 /*
     result = aesd_setup_cdev(&aesd_device);
 
     if( result ) {
         unregister_chrdev_region(dev, 1);
     }
     return result;
+	*/
 
 }
 
 void aesd_cleanup_module(void)
 {
+/*
     dev_t devno = MKDEV(aesd_major, aesd_minor);
 
     cdev_del(&aesd_device.cdev);
+	*/
 
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
 
+/*
     unregister_chrdev_region(devno, 1);
+	*/
 }
 
 
