@@ -26,7 +26,15 @@
 #define LISTEN_PORT "9000"  
 #define MAX_BUF 1024
 #define MAX_PACKET_BUF 65000
+
+#define USE_AESD_CHAR_DEVICE 1
+
+#ifdef USE_AESD_CHAR_DEVICE
+#define SAVE_FILE "/dev/aesdchar"
+#else
 #define SAVE_FILE "/var/tmp/aesdsocketdata"
+#endif
+
 
 #define BACKLOG 10	 // how many pending connections queue will hold
 
@@ -192,7 +200,11 @@ bool bind_socket(int* fdp) {
 
 bool save_to_file(char* packet, int size) {
 
+#ifdef USE_AESD_CHAR_DEVICE
+	fw = open(SAVE_FILE, O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
+#else
 	fw = open(SAVE_FILE, O_CREAT | O_WRONLY | O_APPEND, S_IRWXU | S_IRWXG | S_IRWXO);
+#endif
 
 	if (fw == -1) {
 		perror("open");
@@ -225,7 +237,11 @@ void accept_loop(int fd_server)
 	struct slist_data_s *datap = NULL;
 
 
-	printf("server: waiting for connections...\n");
+#ifdef USE_AESD_CHAR_DEVICE
+	printf("server: waiting for connections (save to dev I/O)...\n");
+#else
+	printf("server: waiting for connections (save to tmp file)...\n");
+#endif
 
 	while(!exit_triggered) {  
 		// accept a connection
@@ -432,8 +448,8 @@ int main(int argc, char *argv[])
 {
 	int fd;
 	pid_t pid;
-	struct itimerval itv;
-	struct sigaction sa;
+	//struct itimerval itv;
+	//struct sigaction sa;
 
 	// syslog
 	openlog("Assignment6", LOG_NDELAY, LOG_USER);
@@ -472,6 +488,7 @@ int main(int argc, char *argv[])
 	// init linked list
 	SLIST_INIT(&head); // head points to NULL
 
+	/*
 	// timer handler
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = &timer_proc;
@@ -482,8 +499,9 @@ int main(int argc, char *argv[])
 	itv.it_value.tv_usec = 0;
 	itv.it_interval.tv_sec = 10;
 	itv.it_interval.tv_usec = 0;
+	*/
 
-	setitimer(ITIMER_REAL, &itv, NULL);
+	//setitimer(ITIMER_REAL, &itv, NULL);
 
 	//
 	catch_signals();
