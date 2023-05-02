@@ -268,7 +268,7 @@ void accept_loop(int fd_server)
 
 
 #ifdef USE_AESD_CHAR_DEVICE
-	printf("server: waiting for connections (save to dev I/O)...\n");
+	printf("server 2.0: waiting for connections (save to dev I/O)...\n");
 #else
 	printf("server: waiting for connections (save to tmp file)...\n");
 #endif
