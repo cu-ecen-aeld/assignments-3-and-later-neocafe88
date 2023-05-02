@@ -35,7 +35,7 @@ int aesd_open(struct inode *inode, struct file *filp)
 {
 	struct aesd_dev *dev;
 
-    PDEBUG("open");
+    PDEBUG("OPEN");
 
     /* TODO: handle open */
 
@@ -50,7 +50,7 @@ int aesd_open(struct inode *inode, struct file *filp)
 
 int aesd_release(struct inode *inode, struct file *filp)
 {
-    PDEBUG("release");
+    PDEBUG("RELEASE");
 
     /* TODO: handle release */
 	/* TODO-END */
@@ -68,7 +68,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 	ssize_t  n_read, not_copied, to_read, just_copied, search_offset;
 	int i; 
 
-    PDEBUG("read %zu bytes with offset %lld", count, *f_pos);
+    PDEBUG("READ >>  %zu bytes with offset %lld, f_pos=%lld", count, *f_pos, filp->f_pos);
 
     /* TODO: handle read  */
 
@@ -126,7 +126,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	int rc;
 	ssize_t n_written;
 
-    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+    PDEBUG("WRITE >>  %zu bytes with offset %lld",count,*f_pos);
 
     /* TODO: handle write */
 
@@ -188,6 +188,9 @@ loff_t aesd_seek(struct file *filp, loff_t off, int whence)
 	}
 
 	newpos = fixed_size_llseek(filp, off, whence, dev->buffer.size);
+
+	PDEBUG("SEEK > new pos=%lld", newpos);
+
 	if (newpos < 0) return -EINVAL;
 
 	filp->f_pos = newpos;
@@ -237,6 +240,8 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 					// set f_pos
 					filp->f_pos = pos + cmd_arg.write_cmd_offset;
+					PDEBUG("IOCTL >> cmd=%d, offset=%d, pos=%lld", 
+						cmd_arg.write_cmd, cmd_arg.write_cmd_offset, filp->f_pos);
 
 					result = 0;
 				}
