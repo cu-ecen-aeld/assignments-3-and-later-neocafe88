@@ -23,6 +23,8 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
+#include "../aesd-char-driver/aesd_ioctl.h"
+
 #define LISTEN_PORT "9000"  
 #define MAX_BUF 1024
 #define MAX_PACKET_BUF 65000
@@ -199,6 +201,10 @@ bool bind_socket(int* fdp) {
 
 
 bool save_to_file(char* packet, int size) {
+	int rc;
+	struct aesd_seekto cmd_arg;
+	ssize_t nr;
+	int route;
 
 #ifdef USE_AESD_CHAR_DEVICE
 	fw = open(SAVE_FILE, O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -210,18 +216,35 @@ bool save_to_file(char* packet, int size) {
 		perror("open");
 	}
 
-	ssize_t nr = write(fw, packet, size);
+	if (strncmp(packet, "AESDCHAR_IOCSEEKTO:", 19) == 0) {
+		route = 0;
+
+		// driver to ioctl
+		char *not_used = strtok(packet, ":");
+		printf("Not Used=%s", not_used);
+
+		cmd_arg.write_cmd = atoi(strtok(NULL, ","));
+		cmd_arg.write_cmd_offset = atoi(strtok(NULL, ","));
+
+		rc = ioctl(fw, AESDCHAR_IOCSEEKTO, &cmd_arg);
+	} else {
+		route = 1;
+		nr = write(fw, packet, size);
+	}
 
 	close(fw);
 
 	fw = -1; // reset -- for signal handler
 
-	if (nr == -1) {
+	if (route == 0 && rc < 0) {
+		perror("ioctl");
+		return false;
+	}
+	else if (route ==1 && nr == -1) {
 		perror("write");
 		return false;
-	} else {
-		return true;
 	}
+	return true;
 }
 
 // listening module

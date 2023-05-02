@@ -89,12 +89,16 @@ void aesd_circular_buffer_add_entry(
 	// assign first
     buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
 	buffer->entry[buffer->in_offs].size = add_entry->size;
+	buffer->size += add_entry->size;
 
 	// move write header forward
 	buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
 
 	// if buffer was full, move reading header forward too
 	if (buffer->full) {
+		// decrease the total size
+		buffer->size -= buffer->entry[buffer->out_offs].size;
+		// move reading hearder forward
 		buffer->out_offs = buffer->in_offs;
 	} 
 	// check if buffer full

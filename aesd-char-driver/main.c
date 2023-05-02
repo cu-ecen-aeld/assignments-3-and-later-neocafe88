@@ -20,6 +20,7 @@
 #include <linux/slab.h> // file_operations
 
 #include "aesdchar.h"
+#include "aesd_ioctl.h"
 
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
@@ -171,12 +172,93 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	/* TODO-END */
 }
 
+loff_t aesd_seek(struct file *filp, loff_t off, int whence)
+{
+	struct aesd_dev *dev;
+	loff_t newpos;
+
+	//PDEBUG("seek %lld from %zu", off, whence);
+
+	if (filp == NULL) return -EFAULT;
+
+	dev = (struct aesd_dev*) filp->private_data; 
+
+	if (mutex_lock_interruptible(&dev->lock)) {
+	    return -ERESTARTSYS;
+	}
+
+	newpos = fixed_size_llseek(filp, off, whence, dev->buffer.size);
+	if (newpos < 0) return -EINVAL;
+
+	filp->f_pos = newpos;
+
+	mutex_unlock(&dev->lock);
+
+	return newpos;
+}
+
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct aesd_dev *dev;
+	struct aesd_seekto cmd_arg;
+	int result, rc, pos, i;
+
+	//PDEBUG("ioctl command=%zu, arg=%lld", cmd, arg);
+
+	dev = (struct aesd_dev*) filp->private_data;
+
+	if (mutex_lock_interruptible(&dev->lock)) {
+		return -ERESTARTSYS;
+	}
+
+	switch(cmd) {
+		case AESDCHAR_IOCSEEKTO:
+			// decode user command arg
+			cmd_arg.write_cmd = -1; // default in case
+			rc = copy_from_user(&cmd_arg, (const void __user *)arg, sizeof(cmd_arg));
+
+			if (rc != 0) {
+				result = -EFAULT;
+			} else {
+				// cmd_arg.write_cmd -> command
+				// cmd_arg.write_cmd_offset -> offset
+
+				if (cmd_arg.write_cmd < 0 
+					|| cmd_arg.write_cmd >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED
+					|| dev->buffer.entry[cmd_arg.write_cmd].buffptr == NULL
+					|| dev->buffer.entry[cmd_arg.write_cmd].size <= cmd_arg.write_cmd_offset) {
+					result = -EINVAL;
+				} else {
+					pos = 0;
+
+					for (i = 0; i < cmd_arg.write_cmd; i++) {
+						pos += dev->buffer.entry[i].size;
+					}
+
+					// set f_pos
+					filp->f_pos = pos + cmd_arg.write_cmd_offset;
+
+					result = 0;
+				}
+			}
+			break;
+		default:
+			result = -EINVAL;
+	}
+
+	mutex_unlock(&dev->lock);
+
+	return result;
+}
+
 struct file_operations aesd_fops = {
-    .owner =    THIS_MODULE,
-    .read =     aesd_read,
-    .write =    aesd_write,
-    .open =     aesd_open,
-    .release =  aesd_release,
+    .owner  = THIS_MODULE,
+    .read   = aesd_read,
+    .write  = aesd_write,
+    .open   = aesd_open,
+	.llseek = aesd_seek,
+	.unlocked_ioctl  = aesd_ioctl,
+    .release= aesd_release,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
@@ -202,6 +284,7 @@ int aesd_init_module(void)
 
 	printk(KERN_ALERT "Hello, this aesd char driver");
 
+	// dynamic allocation of device number
     result = alloc_chrdev_region(&dev, aesd_minor, 1, "aesdchar");
     aesd_major = MAJOR(dev);
 
@@ -209,6 +292,8 @@ int aesd_init_module(void)
         printk(KERN_WARNING "Can't get major %d\n", aesd_major);
         return result;
     }
+
+	// initialize data
     memset(&aesd_device,0,sizeof(struct aesd_dev));
 
     /* TODO: initialize the AESD specific portion of the device */
